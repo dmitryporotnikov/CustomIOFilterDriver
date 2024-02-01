@@ -8,7 +8,7 @@ if (-NOT ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdenti
 # Set variables for the service, driver, and download URL
 $zipFileName = "CustomFilterDriver.zip"
 $serviceName = "CustomDriverService"
-$downloadUrl = "https://github.com/dmitryporotnikov/CustomIOFilterDriver/releases/download/0.0.1/$zipFileName"
+$downloadUrl = "https://github.com/dmitryporotnikov/CustomIOFilterDriver/releases/download/0.0.2/$zipFileName"
 $zipPath = "C:\Windows\System32\$zipFileName"
 $driverExtractFolderPath = "C:\Windows\System32\CustomFilterDriver"
 $driverFolderPath = Join-Path -Path $driverExtractFolderPath -ChildPath "CustomFilterDriver"
