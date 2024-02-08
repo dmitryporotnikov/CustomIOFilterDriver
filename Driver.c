@@ -28,20 +28,43 @@ const FLT_REGISTRATION FilterRegistration = {
     NULL, NULL, NULL // Reserved
 };
 
-FLT_PREOP_CALLBACK_STATUS PreOperationCallback(PFLT_CALLBACK_DATA Data, PCFLT_RELATED_OBJECTS FltObjects, PVOID* CompletionContext)
+FLT_PREOP_CALLBACK_STATUS PreOperationCallback(
+    PFLT_CALLBACK_DATA Data,
+    PCFLT_RELATED_OBJECTS FltObjects,
+    PVOID* CompletionContext)
 {
     UNREFERENCED_PARAMETER(FltObjects);
     UNREFERENCED_PARAMETER(CompletionContext);
 
     // Check if the operation is initiated by user-mode
     if (Data->RequestorMode == UserMode) {
-        // This is a user-mode request; introduce delay
-        LARGE_INTEGER currentTime;
-        KeQuerySystemTime(&currentTime);
-        ULONG seed = currentTime.LowPart;
-        int delayInSeconds = seed % 6; // 0 to 5 inclusive
+        PFLT_FILE_NAME_INFORMATION fileNameInfo;
+        NTSTATUS status;
+        UNICODE_STRING excludedPath = RTL_CONSTANT_STRING(L"\\Users\\");
+
+        // Retrieve the normalized name information for the file
+        status = FltGetFileNameInformation(Data,
+            FLT_FILE_NAME_NORMALIZED | FLT_FILE_NAME_QUERY_DEFAULT,
+            &fileNameInfo);
+        if (NT_SUCCESS(status)) {
+            status = FltParseFileNameInformation(fileNameInfo);
+
+            if (NT_SUCCESS(status)) {
+                // Check if the file path starts with "C:\Users" (accounting for device prefixes)
+                if (wcsstr(fileNameInfo->Name.Buffer, excludedPath.Buffer) != NULL) {
+                    // The file is in the C:\Users directory or subdirectories; skip delay
+                    FltReleaseFileNameInformation(fileNameInfo);
+                    return FLT_PREOP_SUCCESS_NO_CALLBACK;
+                }
+            }
+
+            // Release the file name information after use
+            FltReleaseFileNameInformation(fileNameInfo);
+        }
+
+        // If not excluded, introduce delay
         LARGE_INTEGER delay;
-        delay.QuadPart = -(10 * 1000 * 1000 * (LONGLONG)delayInSeconds); // Convert to 100-nanosecond intervals
+        delay.QuadPart = -(10 * 1000 * 1000 * (LONGLONG)(Data->Iopb->TargetFileObject->CurrentByteOffset.LowPart % 4));
         KeDelayExecutionThread(KernelMode, FALSE, &delay);
     }
 
